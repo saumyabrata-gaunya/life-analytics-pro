@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Analytics Pro</title>
+
+<style>
+:root{
+    --bg-dark:#0f172a;
+    --bg-light:#f1f5f9;
+    --card-dark:#1e293b;
+    --card-light:#ffffff;
+    --accent:#3b82f6;
+}
+
+body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:20px;
+    transition:.3s;
+}
+
+.dark{
+    background:var(--bg-dark);
+    color:white;
+}
+
+.light{
+    background:var(--bg-light);
+    color:black;
+}
+
+h1{text-align:center;}
+
+button,input,select{
+    padding:8px;
+    margin:5px;
+    border-radius:6px;
+    border:none;
+}
+
+button{
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+}
+
+.section{
+    margin-top:20px;
+    padding:20px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.05);
+    backdrop-filter: blur(8px);
+}
+
+.light .section{
+    background:white;
+    box-shadow:0 4px 10px rgba(0,0,0,.1);
+}
+
+.progress-container{
+    background:#ccc;
+    height:20px;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.progress-bar{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#22c55e,#3b82f6);
+}
+
+canvas{
+    width:100%;
+    max-height:220px;
+}
+
+#confetti{
+    font-size:28px;
+    text-align:center;
+    display:none;
+}
+</style>
+</head>
+
+<body class="dark">
+
+<h1>Life Analytics Pro</h1>
+
+<button onclick="toggleTheme()">🌈 Theme</button>
+<br><br>
+
+<select id="profileSelect"></select>
+<button onclick="loadProfile()">Load</button>
+<br>
+
+<input type="text" id="name" placeholder="Name">
+<input type="date" id="dob">
+<input type="password" id="pin" placeholder="4-digit PIN">
+<button onclick="saveProfile()">💾 Save</button>
+<button onclick="start()">Start</button>
+<button onclick="exportPDF()">📄 Export PDF</button>
+
+<div id="confetti">🎉🎂 HAPPY BIRTHDAY 🎂🎉</div>
+
+<div class="section">
+<h3>Exact Age</h3>
+<p id="exactAge"></p>
+</div>
+
+<div class="section">
+<h3>Lifetime Counter</h3>
+<p id="lifeCounter"></p>
+</div>
+
+<div class="section">
+<h3>Life Completion (100 Years)</h3>
+<div class="progress-container">
+<div class="progress-bar" id="ageBar"></div>
+</div>
+<p id="progressText"></p>
+</div>
+
+<div class="section">
+<h3>Life Progress Graph</h3>
+<canvas id="lifeChart" width="400" height="220"></canvas>
+</div>
+
+<div class="section">
+<h3>Age on Planets</h3>
+<div id="planetAge"></div>
+</div>
+
+<script>
+let interval;
+let ctx = document.getElementById("lifeChart").getContext("2d");
+
+function toggleTheme(){
+    document.body.classList.toggle("dark");
+    document.body.classList.toggle("light");
+}
+
+function saveProfile(){
+    let name=document.getElementById("name").value;
+    let dob=document.getElementById("dob").value;
+    let pin=document.getElementById("pin").value;
+
+    if(!name || !dob || pin.length!==4)
+        return alert("Enter valid details");
+
+    localStorage.setItem(name, JSON.stringify({dob:dob,pin:pin}));
+    updateProfiles();
+}
+
+function updateProfiles(){
+    let select=document.getElementById("profileSelect");
+    select.innerHTML="";
+    for(let i=0;i<localStorage.length;i++){
+        let key=localStorage.key(i);
+        select.innerHTML+=`<option>${key}</option>`;
+    }
+}
+updateProfiles();
+
+function loadProfile(){
+    let name=document.getElementById("profileSelect").value;
+    let data=JSON.parse(localStorage.getItem(name));
+    let entered=prompt("Enter PIN");
+
+    if(entered===data.pin){
+        document.getElementById("name").value=name;
+        document.getElementById("dob").value=data.dob;
+    }else{
+        alert("Wrong PIN");
+    }
+}
+
+function drawGraph(percent){
+    ctx.clearRect(0,0,400,220);
+
+    ctx.beginPath();
+    ctx.moveTo(0,200);
+    ctx.lineTo(400,200);
+    ctx.strokeStyle="#888";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0,200);
+    ctx.lineTo(4*percent,200-(percent*1.5));
+    ctx.strokeStyle="#3b82f6";
+    ctx.lineWidth=3;
+    ctx.stroke();
+}
+
+function start(){
+clearInterval(interval);
+
+let dobInput=document.getElementById("dob").value;
+if(!dobInput) return alert("Enter DOB");
+
+let dob=new Date(dobInput);
+
+interval=setInterval(function(){
+
+let now=new Date();
+
+let years=now.getFullYear()-dob.getFullYear();
+let months=now.getMonth()-dob.getMonth();
+let days=now.getDate()-dob.getDate();
+
+if(days<0){
+    months--;
+    let lastMonth=new Date(now.getFullYear(),now.getMonth(),0);
+    days+=lastMonth.getDate();
+}
+if(months<0){years--;months+=12;}
+
+document.getElementById("exactAge").innerHTML=
+`${years} Years ${months} Months ${days} Days`;
+
+let diff=now-dob;
+let seconds=Math.floor(diff/1000);
+let minutes=Math.floor(seconds/60);
+let hours=Math.floor(minutes/60);
+let totalDays=Math.floor(hours/24);
+
+document.getElementById("lifeCounter").innerHTML=
+`${totalDays} Days<br>${hours} Hours<br>${minutes} Minutes<br>${seconds} Seconds`;
+
+let percent=(years/100)*100;
+if(percent>100) percent=100;
+
+document.getElementById("ageBar").style.width=percent+"%";
+document.getElementById("progressText").innerText=
+percent.toFixed(2)+"% Completed";
+
+drawGraph(percent);
+
+let earthYears=diff/(1000*60*60*24*365.25);
+let planets={
+Mercury:0.24,
+Venus:0.62,
+Mars:1.88,
+Jupiter:11.86,
+Saturn:29.46,
+Uranus:84,
+Neptune:164.8
+};
+
+let html="";
+for(let p in planets){
+html+=`<p>${p}: ${(earthYears/planets[p]).toFixed(2)} Years</p>`;
+}
+document.getElementById("planetAge").innerHTML=html;
+
+if(now.getDate()===dob.getDate() &&
+   now.getMonth()===dob.getMonth()){
+document.getElementById("confetti").style.display="block";
+}else{
+document.getElementById("confetti").style.display="none";
+}
+
+},1000);
+}
+
+function exportPDF(){
+
+let name=document.getElementById("name").value || "User";
+let exactAge=document.getElementById("exactAge").innerText;
+let lifeCounter=document.getElementById("lifeCounter").innerHTML.replace(/<br>/g,"\n");
+let progress=document.getElementById("progressText").innerText;
+
+let report=window.open("","","width=800,height=600");
+
+report.document.write(`
+<html>
+<head>
+<title>Life Report</title>
+<style>
+body{font-family:Arial;padding:20px;}
+h1{text-align:center;}
+.section{margin-top:20px;}
+</style>
+</head>
+<body>
+<h1>Life Analytics Report</h1>
+
+<div class="section"><h3>Name</h3><p>${name}</p></div>
+<div class="section"><h3>Exact Age</h3><p>${exactAge}</p></div>
+<div class="section"><h3>Lifetime Progress</h3><pre>${lifeCounter}</pre></div>
+<div class="section"><h3>Completion</h3><p>${progress}</p></div>
+
+</body>
+</html>
+`);
+
+report.document.close();
+report.print();
+}
+</script>
+
+</body>
+</html>
